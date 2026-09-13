@@ -61,27 +61,41 @@
             }
         `;
 
-        // Fragment shader: uses u_resolution, u_time, and u_mouse
+        // Fragment shader: uses u_resolution, u_time, and u_mouse. This is where i put my code. 
         const fsSource = `
-            precision mediump float;
-            uniform vec2 u_resolution;
-            uniform float u_time;
-            uniform vec2 u_mouse;
+            #ifdef GL_ES
+precision mediump float;
+#endif
 
-            void main() {
-                // Normalize current pixel coordinates (0.0 to 1.0)
-                vec2 st = gl_FragCoord.xy / u_resolution;
-                
-                // Normalize mouse coordinates (0.0 to 1.0)
-                vec2 normMouse = u_mouse / u_resolution;
-                
-                // Create color channels driven by position, mouse coordinates, and time
-                float r = st.x * normMouse.x;
-                float g = st.y * normMouse.y;
-                float b = abs(sin(u_time));
+#define PI 3.14159265359
 
-                gl_FragColor = vec4(vec3(r, g, b), 1.0);
-            }
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_time;
+
+float plot(vec2 st){
+    return st.x = st.y;
+}
+
+
+void main() {
+    vec2 st = gl_FragCoord.xy/u_resolution.xy;
+    st.x *= u_resolution.x/u_resolution.y;
+    
+    float y = st.x/sin(st.x*u_time);
+    float x = st.y/sin(st.y+u_time);
+    
+    float comb = cos(x*u_time)/sin(y-u_time);
+
+
+    vec3 color = vec3(comb);
+
+    // Plot a line
+    float pct = plot(st);
+    color = (0.5-pct)*color+pct*vec3(0.0,0.5,0.6);
+    
+    gl_FragColor = vec4(color,1.0);
+}
         `;
 
         // Helper function to compile shaders
