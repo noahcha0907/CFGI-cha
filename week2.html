@@ -87,11 +87,7 @@ float random(vec2 st) {
 //figure out what this pulse is
 //aspect ratio of 
 void main() {
-    vec2 st = (gl_FragCoord.xy - u_mouse.xy) / u_resolution.y;
-
-
- 	st.x *= 0.3;
-	
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;
     // Generate one constant pseudo-random value.
     // Because the seed is always 10.1, rnd is the same for every pixel.
     float rnd = random(st);
@@ -105,9 +101,11 @@ void main() {
     for(int i = 0; i < 3; i++) {
         // Shift coordinates so the mouse becomes the new origin.
     	// NOTE: because st is changed each loop, this shift accumulates.
-    	st -= (u_mouse / r);
-        // Compress horizontal coordinates, making circular forms look flattened.
-        st.x *= 0.3;
+    	float targetAspect = 16.0 / 9.0;
+		float currentAspect = r.x / r.y;
+		float aspectCorrection = currentAspect / targetAspect;
+
+		st.x *= 0.3 * aspectCorrection;
         // Shift the phase differently for each RGB channel.
         // First loop: t-1, second: t-2, third: t-3.
         z -= 1.0;
