@@ -88,16 +88,19 @@ float random(vec2 st) {
 //aspect ratio of 
 void main() {
     vec2 st = gl_FragCoord.xy / u_resolution.xy;
-    vec2 click = u_click / u_resolution;
-    vec2 dropSt = st - click;
-    dropSt.x *= 0.3;
-    float dropDistance = length(dropSt);
-    float age = u_time - u_clickTime;
-    float radius = age * 0.2;
+	// Normalized mouse position
+    vec2 mouse = u_mouse / u_resolution;
 
-	float ringDistance = abs(dropDistance - radius);
+    // Width / height of the canvas
+    float aspect = u_resolution.x / u_resolution.y;
 
-	float ring = 1.0 - smoothstep(0.0, 0.015, ringDistance);
+    // Make coordinates relative to mouse
+    st -= mouse;
+
+    // correct for browser aspect ratio
+    st.x *= aspect;
+    st.x *= 0.3;
+	
     // Generate one constant pseudo-random value.
     // Because the seed is always 10.1, rnd is the same for every pixel.
     float rnd = random(st);
