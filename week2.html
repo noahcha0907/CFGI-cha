@@ -63,35 +63,89 @@
 
         // Fragment shader: uses u_resolution, u_time, and u_mouse. This is where i put my code. 
         const fsSource = `
-            #ifdef GL_ES
+#ifdef GL_ES
 precision mediump float;
 #endif
 
 uniform vec2 u_resolution;
 uniform vec2 u_mouse;
 uniform float u_time;
+
+uniform vec2 u_click;
+uniform float u_clickTime;
+
 #define t u_time
 #define r u_resolution
 
-float random (vec2 st) {
-    return fract(abs(dot(st.xy,r/r)*43758.5453123));
+float random(vec2 st) {
+    return fract(sin(dot(st, st))* 43758.5453123);
 }
 
-void main() {
-    vec2 st = gl_FragCoord.xy/u_resolution.xy;
-    float rnd = random( st );
-    vec3 c;
-	float l,z=t;
-	for(int i=0;i<2;i++) {
-		st-=(u_mouse/r);
-		st.x*=fract(r.x/r.y);
-		z-=0.702;
-		l=length(st);
-		st*=rnd/l*(sin(z))*sin(l*50.-z-z);
-		c[i]=fract(.01/length(mod(st,1.)-.5));
-	}
 
-    gl_FragColor = vec4(c+l, t);
+//Goals: Raindrop effect from mouse click, 
+//mesh noise add back in, 
+//figure out what this pulse is
+//aspect ratio of 
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;
+    vec2 click = u_click / u_resolution;
+    vec2 dropSt = st - click;
+    dropSt.x *= 0.3;
+    float dropDistance = length(dropSt);
+    float age = u_time - u_clickTime;
+    float radius = age * 0.2;
+
+	float ringDistance = abs(dropDistance - radius);
+
+	float ring = 1.0 - smoothstep(0.0, 0.015, ringDistance);
+    // Generate one constant pseudo-random value.
+    // Because the seed is always 10.1, rnd is the same for every pixel.
+    float rnd = random(st);
+    // Stores the final red, green, and blue channel values.
+    vec3 c;
+    // Will store the pixel's distance from the current origin.
+    float l;
+    // Start z at the current elapsed time.
+    float z = t;
+    // Run once for each RGB channel: i=0 red, i=1 green, i=2 blue.
+    for(int i = 0; i < 3; i++) {
+        // Shift coordinates so the mouse becomes the new origin.
+    	// NOTE: because st is changed each loop, this shift accumulates.
+    	st -= (u_mouse / r);
+        // Compress horizontal coordinates, making circular forms look flattened.
+        st.x *= 0.3;
+        // Shift the phase differently for each RGB channel.
+        // First loop: t-1, second: t-2, third: t-3.
+        z -= 1.0;
+        // Measure this pixel's distance from the current origin.
+        // This radial distance is what allows circular/ring patterns.
+        l = length(st);
+        // Controls how tightly packed the radial rings are.
+        float ringFrequency = 50.0;
+        // Global oscillation over time: ranges approximately from -1 to 1.
+    //float pulse = sin(t);
+
+        // Create an oscillating wave based on both radial distance and time.
+        // l controls WHERE the rings are; z makes them move over time.
+        float radialWave = sin(l * ringFrequency - 2.0 * z);
+        // Make the distortion stronger near the center and weaker farther away.
+        float scale = rnd / l;
+
+        // Multiply the coordinates by the inverse of the combined distortion.
+        // This warps st using distance, pulse, and the moving radial wave.
+        st *= pow(scale * radialWave, -1.0);
+        
+        float band = fract(0.01 / length(st - 0.5));
+        // Measure distance from (.5,.5), invert it to create a bright center,
+        // then fract() wraps large values into repeating 0–1 bands.
+        // Store the result in the current RGB channel.
+        float fade = 5.0 / (1.0 + l * 3.0);
+
+		c[i] = band * fade;
+    }
+    // Add radial distance l to every RGB channel, increasing brightness,
+    // and output the final color with full opacity.
+    gl_FragColor = vec4(c*9.0 + l, 1.0);
 }
         `;
 
