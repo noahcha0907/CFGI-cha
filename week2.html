@@ -46,11 +46,24 @@
 
         // Resize canvas to match display size
         function resize() {
-            canvas.width = window.innerWidth;
-            canvas.height = window.innerHeight;
-            gl.viewport(0, 0, canvas.width, canvas.height);
-        }
-        window.addEventListener('resize', resize);
+    const dpr = window.devicePixelRatio || 1;
+
+    canvas.width = Math.round(window.innerWidth * dpr);
+    canvas.height = Math.round(window.innerHeight * dpr);
+
+    gl.viewport(0, 0, canvas.width, canvas.height);
+}
+        window.addEventListener('mousemove', (e) => {
+    const rect = canvas.getBoundingClientRect();
+
+    mouse.x =
+        (e.clientX - rect.left) *
+        (canvas.width / rect.width);
+
+    mouse.y =
+        (rect.bottom - e.clientY) *
+        (canvas.height / rect.height);
+});
         resize();
 
         // Vertex shader: simple full-quad position pass
