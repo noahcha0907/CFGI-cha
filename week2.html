@@ -101,11 +101,13 @@ void main() {
     for(int i = 0; i < 3; i++) {
         // Shift coordinates so the mouse becomes the new origin.
     	// NOTE: because st is changed each loop, this shift accumulates.
-    	float targetAspect = 16.0 / 9.0;
-		float currentAspect = r.x / r.y;
-		float aspectCorrection = currentAspect / targetAspect;
+    	st -= (u_mouse / r);
 
-		st.x *= 0.3 * aspectCorrection;
+float targetAspect = 16.0 / 9.0;
+float currentAspect = r.x / r.y;
+float aspectCorrection = currentAspect / targetAspect;
+
+st.x *= 0.3 * aspectCorrection;
         // Shift the phase differently for each RGB channel.
         // First loop: t-1, second: t-2, third: t-3.
         z -= 1.0;
