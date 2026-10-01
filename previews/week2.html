@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Week 2 preview</title>
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:#071416}canvas{display:block;width:100%;height:100%}p{color:white;font:12px monospace;padding:20px}</style></head>
+<body><canvas aria-label="Live Week 2 shader preview"></canvas><script src="../assets/preview-playback.js"></script>
+<script>
+(() => {
+  const canvas=document.querySelector('canvas'),gl=canvas.getContext('webgl',{alpha:false,antialias:false});
+  if(!gl){document.body.innerHTML='<p>Open the study to view this shader.</p>';return;}
+  const source=`
+#ifdef GL_ES
+precision mediump float;
+#endif
+
+uniform vec2 u_resolution;
+uniform vec2 u_mouse;
+uniform float u_time;
+
+uniform vec2 u_click;
+uniform float u_clickTime;
+
+#define t u_time
+#define r u_resolution
+
+float random(vec2 st) {
+    return fract(sin(dot(st, st))* 43758.5453123);
+}
+
+
+//Goals: Raindrop effect from mouse click, 
+//mesh noise add back in, 
+//figure out what this pulse is
+//aspect ratio of 
+void main() {
+    vec2 st = gl_FragCoord.xy / u_resolution.xy;
+    // Generate one constant pseudo-random value.
+    // Because the seed is always 10.1, rnd is the same for every pixel.
+    float rnd = random(st);
+    // Stores the final red, green, and blue channel values.
+    vec3 c;
+    // Will store the pixel's distance from the current origin.
+    float l;
+    // Start z at the current elapsed time.
+    float z = t;
+    // Run once for each RGB channel: i=0 red, i=1 green, i=2 blue.
+    for(int i = 0; i < 3; i++) {
+        // Shift coordinates so the mouse becomes the new origin.
+    	// NOTE: because st is changed each loop, this shift accumulates.
+    	st -= (u_mouse / r);
+
+float targetAspect = 16.0 / 9.0;
+float currentAspect = r.x / r.y;
+float aspectCorrection = currentAspect / targetAspect;
+
+st.x *= 0.3 * aspectCorrection;
+        // Shift the phase differently for each RGB channel.
+        // First loop: t-1, second: t-2, third: t-3.
+        z -= 1.0;
+        // Measure this pixel's distance from the current origin.
+        // This radial distance is what allows circular/ring patterns.
+        l = length(st);
+        // Controls how tightly packed the radial rings are.
+        float ringFrequency = 50.0;
+        // Global oscillation over time: ranges approximately from -1 to 1.
+    //float pulse = sin(t);
+
+        // Create an oscillating wave based on both radial distance and time.
+        // l controls WHERE the rings are; z makes them move over time.
+        float radialWave = sin(l * ringFrequency - 2.0 * z);
+        // Make the distortion stronger near the center and weaker farther away.
+        float scale = rnd / l;
+
+        // Multiply the coordinates by the inverse of the combined distortion.
+        // This warps st using distance, pulse, and the moving radial wave.
+        st *= pow(scale * radialWave, -1.0);
+        
+        float band = fract(0.01 / length(st - 0.5));
+        // Measure distance from (.5,.5), invert it to create a bright center,
+        // then fract() wraps large values into repeating 0–1 bands.
+        // Store the result in the current RGB channel.
+        float fade = 5.0 / (1.0 + l * 3.0);
+
+		c[i] = band * fade;
+    }
+    // Add radial distance l to every RGB channel, increasing brightness,
+    // and output the final color with full opacity.
+    gl_FragColor = vec4(c*9.0 + l, 1.0);
+}
+        `;
+  function compile(type,source){const shader=gl.createShader(type);gl.shaderSource(shader,source);gl.compileShader(shader);if(!gl.getShaderParameter(shader,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(shader));return shader;}
+  const program=gl.createProgram();
+  try{
+    gl.attachShader(program,compile(gl.VERTEX_SHADER,'attribute vec2 a_position;void main(){gl_Position=vec4(a_position,0.,1.);}'));
+    gl.attachShader(program,compile(gl.FRAGMENT_SHADER,source));gl.linkProgram(program);
+    if(!gl.getProgramParameter(program,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(program));
+  }catch(error){console.error(error);document.body.innerHTML='<p>Open the study to view this shader.</p>';return;}
+  gl.useProgram(program);
+  const buffer=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,buffer);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([-1,-1,1,-1,-1,1,-1,1,1,-1,1,1]),gl.STATIC_DRAW);
+  const position=gl.getAttribLocation(program,'a_position');gl.enableVertexAttribArray(position);gl.vertexAttribPointer(position,2,gl.FLOAT,false,0,0);
+  const resolution=gl.getUniformLocation(program,'u_resolution'),clock=gl.getUniformLocation(program,'u_time'),mouseUniform=gl.getUniformLocation(program,'u_mouse');
+  let time=2.8,mouse={x:.48,y:.5},pointer=false;
+  addEventListener('message',event=>{if(event.source!==parent||event.data?.type!=='preview-pointer')return;mouse={x:event.data.x,y:1-event.data.y};pointer=true;});
+  PreviewPlayback.run((now,dt)=>{
+    time+=dt;
+    const width=Math.max(1,Math.round(innerWidth)),height=Math.max(1,Math.round(innerHeight));
+    if(canvas.width!==width||canvas.height!==height){canvas.width=width;canvas.height=height;gl.viewport(0,0,width,height);}
+    if(!pointer)mouse={x:.48+Math.sin(time*.18)*.12,y:.5+Math.cos(time*.13)*.08};
+    gl.uniform2f(resolution,width,height);gl.uniform1f(clock,time);gl.uniform2f(mouseUniform,mouse.x*width,mouse.y*height);
+    gl.drawArrays(gl.TRIANGLES,0,6);
+  });
+})();
+</script></body></html>

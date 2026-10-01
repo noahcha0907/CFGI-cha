@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Face Rain — camera-free preview</title>
+<style>html,body{margin:0;width:100%;height:100%;overflow:hidden;background:white}canvas{display:block;width:100%;height:100%}</style></head>
+<body><canvas id="canvas" aria-label="Blank spheres falling onto a white floor with colorful shader ripples"></canvas>
+<script src="../assets/preview-playback.js"></script><script>
+(() => {
+  'use strict';
+  const canvas = document.getElementById('canvas');
+  const gl = canvas.getContext('webgl', { alpha: false, antialias: true });
+  function message(text) { console.warn(text); }
+  if (!gl) { message('WebGL is unavailable. Try Chrome with hardware acceleration enabled.'); return; }
+
+  // All drawing uses one reusable quad. Sphere surfaces are shaded analytically.
+  const vertexSource = `
+    attribute vec2 a_position;
+    uniform vec2 u_resolution, u_center;
+    uniform float u_radius;
+    varying vec2 v_position;
+    void main() {
+      v_position = a_position;
+      vec2 pixel = u_center + a_position * u_radius;
+      gl_Position = vec4(pixel / u_resolution * 2.0 - 1.0, 0.0, 1.0);
+    }
+  `;
+  const sphereSource = `
+    precision mediump float;
+    varying vec2 v_position;
+    uniform sampler2D u_snapshot;
+    uniform float u_rotation;
+    void main() {
+      float d = dot(v_position, v_position);
+      if (d > 1.0) discard;
+      float cs = cos(u_rotation), sn = sin(u_rotation);
+      vec2 p = mat2(cs, -sn, sn, cs) * v_position;
+      vec3 normal = vec3(p, sqrt(max(0.0, 1.0 - d)));
+      // Spherical coordinates bend the frozen face image around the sphere.
+      vec2 uv = vec2(0.5 + atan(normal.x, normal.z) / 3.14159265,
+                     0.5 + asin(normal.y) / 3.14159265);
+      vec3 face = texture2D(u_snapshot, uv).rgb;
+      vec3 worldNormal = vec3(v_position, normal.z);
+      vec3 light = normalize(vec3(-0.5, 0.65, 1.0));
+      float diffuse = max(dot(worldNormal, light), 0.0);
+      float highlight = pow(max(dot(worldNormal, normalize(light + vec3(0.0, 0.0, 1.0))), 0.0), 50.0);
+      vec3 color = face * (0.42 + 0.58 * diffuse) + vec3(highlight * 0.32);
+      float alpha = 1.0 - smoothstep(0.975, 1.0, d);
+      gl_FragColor = vec4(color, alpha);
+    }
+  `;
+  const shadowSource = `
+    precision mediump float;
+    varying vec2 v_position;
+    uniform float u_strength;
+    void main() {
+      float alpha = exp(-dot(v_position, v_position) * 4.0) * u_strength;
+      gl_FragColor = vec4(0.07, 0.06, 0.09, alpha);
+    }
+  `;
+  const rippleSource = `
+    precision mediump float;
+    varying vec2 v_position;
+    uniform float u_age, u_extent;
+    // ShaderCode's RGB phase shifts, 50-frequency radial waves, reciprocal
+    // distortion, fract bands, and 9x output gain, evaluated per impact.
+    vec3 shaderCode(vec2 st, float age) {
+      float rnd = max(st.y, 0.02);
+      vec3 c = vec3(0.0);
+      float l = 0.0;
+      float z = age;
+      for (int i = 0; i < 3; i++) {
+        st -= vec2(0.5);
+        z -= 1.0;
+        l = max(length(st), 0.002);
+        float radialWave = sin(l * 50.0 - 2.0 * z);
+        float divisor = (rnd / l) * radialWave;
+        // Safe reciprocal replaces pow(negativeValue, -1.0), undefined in GLSL.
+        st *= (divisor < 0.0 ? -1.0 : 1.0) / max(abs(divisor), 0.002);
+        float band = fract(0.01 / max(length(st - 0.5), 0.002));
+        c[i] = band * 5.0 / (1.0 + l * 3.0);
+      }
+      return clamp(c * 9.0 + l, 0.0, 1.0);
+    }
+    void main() {
+      vec2 offset = v_position * u_extent;
+      float distance = length(offset);
+      float arrival = u_age * 85.0;
+      // An outward-moving front and trailing rings carry the original pattern.
+      float front = 1.0 - smoothstep(arrival, arrival + 30.0, distance);
+      float wake = exp(-max(arrival - distance, 0.0) / 190.0);
+      float rings = 0.35 + 0.65 * pow(0.5 + 0.5 * cos(distance * 0.07 - u_age * 5.95), 3.0);
+      float fade = (1.0 - smoothstep(10.0, 14.0, u_age)) * smoothstep(0.0, 0.15, u_age);
+      vec3 effect = shaderCode(offset / max(180.0, arrival * 1.5) + 0.5, u_age);
+      gl_FragColor = vec4(mix(vec3(1.0), effect, front * wake * rings * fade * 0.85), 1.0);
+    }
+  `;
+  function makeProgram(fragment, names) {
+    const program = gl.createProgram();
+    for (const [type, source] of [[gl.VERTEX_SHADER, vertexSource], [gl.FRAGMENT_SHADER, fragment]]) {
+      const shader = gl.createShader(type);
+      gl.shaderSource(shader, source); gl.compileShader(shader);
+      if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(shader));
+      gl.attachShader(program, shader); gl.deleteShader(shader);
+    }
+    gl.bindAttribLocation(program, 0, 'a_position'); gl.linkProgram(program);
+    if (!gl.getProgramParameter(program, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(program));
+    const uniforms = {};
+    for (const name of ['resolution','center','radius',...names]) uniforms[name] = gl.getUniformLocation(program, 'u_' + name);
+    return { program, uniforms };
+  }
+  let sphereProgram, rippleProgram, shadowProgram;
+  try {
+    sphereProgram = makeProgram(sphereSource, ['snapshot','rotation']);
+    rippleProgram = makeProgram(rippleSource, ['age','extent']);
+    shadowProgram = makeProgram(shadowSource, ['strength']);
+  } catch (error) { console.error(error); message('The shaders could not start. Try another browser.'); return; }
+  const quad = gl.createBuffer(); gl.bindBuffer(gl.ARRAY_BUFFER, quad);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, -1,1, 1,-1, 1,1]), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(0); gl.vertexAttribPointer(0, 2, gl.FLOAT, false, 0, 0);
+  gl.clearColor(1,1,1,1); gl.enable(gl.BLEND);
+
+  // World x/y lie on the floor, z points up toward the top-down camera.
+  const GRAVITY = 650, CAMERA_HEIGHT = 900, STEP = 1/120;
+  const SPAWN_INTERVAL = 1.8, MAX_SPHERES = 22, RIPPLE_LIFETIME = 14;
+  const balls = [], ripples = [];
+  let worldWidth = innerWidth, worldHeight = innerHeight, simulationTime = 0;
+  let accumulator = 0, nextSpawn = 1.2;
+  // One shared neutral texture: the preview never captures or loads a face.
+  const blankTexture = gl.createTexture();
+  gl.bindTexture(gl.TEXTURE_2D, blankTexture);
+  gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,1,1,0,gl.RGBA,gl.UNSIGNED_BYTE,new Uint8Array([232,234,233,255]));
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+  gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+
+  /* CAMERA / FACE SNAPSHOTS — DORMANT COPY FROM week3.html.
+     These declarations and functions are commented out intentionally. Nothing
+     below requests a camera, imports MediaPipe, or downloads model resources.
+  let stream = null, detector = null, modelLoading = null, running = false;
+  let faceBounds = null, lastDetection = -1, lastVideoTime = -1;
+  let previous = performance.now(), accumulator = 0, nextSpawn = 0, animation, generation = 0;
+  const snapshotCanvas = document.createElement('canvas');
+  snapshotCanvas.width = snapshotCanvas.height = 192;
+  const snapshotContext = snapshotCanvas.getContext('2d');
+
+  async function loadFaceTracker() {
+    if (detector) return;
+    if (!modelLoading) modelLoading = (async () => {
+      const base = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.14';
+      const { FaceLandmarker, FilesetResolver } = await import(base + '/vision_bundle.mjs');
+      const files = await FilesetResolver.forVisionTasks(base + '/wasm');
+      const options = {
+        baseOptions: { modelAssetPath: 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task', delegate: 'GPU' },
+        runningMode: 'VIDEO', numFaces: 1, minFaceDetectionConfidence: 0.5,
+        minFacePresenceConfidence: 0.5, minTrackingConfidence: 0.5,
+        outputFaceBlendshapes: false, outputFacialTransformationMatrixes: false
+      };
+      try { detector = await FaceLandmarker.createFromOptions(files, options); }
+      catch { options.baseOptions.delegate = 'CPU'; detector = await FaceLandmarker.createFromOptions(files, options); }
+    })().catch(error => { modelLoading = null; throw error; });
+    await modelLoading;
+  }
+  function detectFace(now) {
+    const landmarks = detector.detectForVideo(video, now).faceLandmarks[0];
+    if (!landmarks) { faceBounds = null; message('Looking for your face — new spheres will resume automatically.'); return; }
+    const xs = landmarks.map(p => p.x), ys = landmarks.map(p => p.y);
+    const minX = Math.min(...xs), maxX = Math.max(...xs), minY = Math.min(...ys), maxY = Math.max(...ys);
+    const size = Math.max((maxX-minX)*video.videoWidth, (maxY-minY)*video.videoHeight) * 1.18;
+    faceBounds = { x: (minX+maxX)*video.videoWidth/2-size/2, y: (minY+maxY)*video.videoHeight/2-size/2, size };
+    message(balls.length >= MAX_SPHERES ? 'The pile is full. Reload to start a new scene.' : '');
+  }
+  function captureSnapshot() {
+    const { x, y, size } = faceBounds;
+    const n = snapshotCanvas.width;
+    snapshotContext.setTransform(1,0,0,1,0,0);
+    snapshotContext.fillStyle = '#eee'; snapshotContext.fillRect(0,0,n,n);
+    snapshotContext.setTransform(-1,0,0,1,n,0);
+    snapshotContext.drawImage(video, x,y,size,size, 0,0,n,n);
+    const texture = gl.createTexture(); gl.bindTexture(gl.TEXTURE_2D, texture);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D,0,gl.RGBA,gl.RGBA,gl.UNSIGNED_BYTE,snapshotCanvas);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MIN_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_MAG_FILTER,gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_S,gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D,gl.TEXTURE_WRAP_T,gl.CLAMP_TO_EDGE);
+    return texture; // Never updated again: each sphere owns its spawn-time image.
+  }
+  */
+  function spawnSphere() {
+    // This decorative preview loops; the assignment keeps its own full pile.
+    if (balls.length >= MAX_SPHERES) balls.shift();
+    const radius = Math.min(17 + Math.random()*7, Math.min(worldWidth,worldHeight)*0.075);
+    const spread = Math.min(worldWidth,worldHeight)*0.32;
+    balls.push({
+      x: (Math.random()+Math.random()-1)*spread, y: (Math.random()+Math.random()-1)*spread,
+      z: 330 + Math.random()*50, radius, vx: (Math.random()-.5)*18, vy: (Math.random()-.5)*18, vz: -35,
+      rotation: (Math.random()-.5)*0.5, spin: (Math.random()-.5)*0.6,
+      texture: blankTexture, landed: false, lastImpact: -100
+    });
+  }
+  function impact(ball, speed) {
+    if (!ball.landed || (speed > 80 && simulationTime-ball.lastImpact > 0.6)) {
+      ripples.push({ x: ball.x, y: ball.y, born: simulationTime });
+      ball.lastImpact = simulationTime;
+    }
+    ball.landed = true;
+  }
+  function simulate(dt) {
+    simulationTime += dt;
+    for (const b of balls) {
+      b.vz -= GRAVITY*dt;
+      b.x += b.vx*dt; b.y += b.vy*dt; b.z += b.vz*dt;
+      b.rotation += b.spin*dt;
+      if (b.landed) { b.spin *= Math.exp(-dt*3); b.vx *= Math.exp(-dt*1.5); b.vy *= Math.exp(-dt*1.5); }
+    }
+    // Iterative nonpenetration constraints allow spheres to stack vertically.
+    for (let iteration=0; iteration<5; iteration++) {
+      for (const b of balls) {
+        if (b.z < b.radius) {
+          impact(b, Math.max(0,-b.vz)); b.z = b.radius;
+          b.vz = b.vz < -35 ? -b.vz*0.12 : Math.max(0,b.vz);
+          b.vx *= 0.95; b.vy *= 0.95;
+        }
+        const edgeX = Math.max(0,worldWidth/2-b.radius), edgeY = Math.max(0,worldHeight/2-b.radius);
+        if (Math.abs(b.x)>edgeX) { b.x=Math.sign(b.x)*edgeX; b.vx *= -0.2; }
+        if (Math.abs(b.y)>edgeY) { b.y=Math.sign(b.y)*edgeY; b.vy *= -0.2; }
+      }
+      for (let i=0; i<balls.length; i++) for (let j=i+1; j<balls.length; j++) {
+        const a=balls[i], b=balls[j];
+        let dx=b.x-a.x,dy=b.y-a.y,dz=b.z-a.z;
+        let distance=Math.hypot(dx,dy,dz), minimum=a.radius+b.radius;
+        if (distance>=minimum) continue;
+        if (distance<0.0001) { dx=0;dy=0;dz=1;distance=1; }
+        const nx=dx/distance,ny=dy/distance,nz=dz/distance;
+        const correction=(minimum-distance)*0.5;
+        a.x-=nx*correction;a.y-=ny*correction;a.z-=nz*correction;
+        b.x+=nx*correction;b.y+=ny*correction;b.z+=nz*correction;
+        const relative=(b.vx-a.vx)*nx+(b.vy-a.vy)*ny+(b.vz-a.vz)*nz;
+        if(relative<0) {
+          if (nz>0.35 && a.landed && !b.landed) impact(b,-relative);
+          if (nz<-.35 && b.landed && !a.landed) impact(a,-relative);
+          const impulse=-relative*0.52;
+          a.vx-=nx*impulse;a.vy-=ny*impulse;a.vz-=nz*impulse;
+          b.vx+=nx*impulse;b.vy+=ny*impulse;b.vz+=nz*impulse;
+        }
+      }
+    }
+    for (const b of balls) b.z=Math.max(b.radius,b.z);
+    while(ripples.length && simulationTime-ripples[0].born>RIPPLE_LIFETIME) ripples.shift();
+  }
+
+  function useQuad(program, x,y,radius,dpr) {
+    gl.useProgram(program.program);
+    gl.uniform2f(program.uniforms.resolution,canvas.width,canvas.height);
+    gl.uniform2f(program.uniforms.center,(worldWidth/2+x)*dpr,(worldHeight/2-y)*dpr);
+    gl.uniform1f(program.uniforms.radius,radius*dpr);
+  }
+  function drawScene(dpr) {
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    // Multiply each independent ShaderCode ripple into the white floor.
+    gl.blendFunc(gl.DST_COLOR,gl.ZERO);
+    for(const ripple of ripples) {
+      const age=simulationTime-ripple.born;
+      const extent=Math.min(age*85+40,Math.hypot(worldWidth,worldHeight));
+      useQuad(rippleProgram,ripple.x,ripple.y,extent,dpr);
+      gl.uniform1f(rippleProgram.uniforms.age,age);
+      gl.uniform1f(rippleProgram.uniforms.extent,extent);
+      gl.drawArrays(gl.TRIANGLES,0,6);
+    }
+    gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);
+    for(const b of balls) {
+      const height=Math.max(0,b.z-b.radius);
+      useQuad(shadowProgram,b.x+height*.10,b.y+height*.08,b.radius*(1.6+height*.003),dpr);
+      gl.uniform1f(shadowProgram.uniforms.strength,0.28/(1+height*.009));
+      gl.drawArrays(gl.TRIANGLES,0,6);
+    }
+    // Higher spheres are nearer the camera and cover lower ones in the pile.
+    const sorted=[...balls].sort((a,b)=>a.z-b.z);
+    for(const b of sorted) {
+      const perspective=CAMERA_HEIGHT/(CAMERA_HEIGHT-Math.min(b.z,650));
+      useQuad(sphereProgram,b.x*perspective,b.y*perspective,b.radius*perspective,dpr);
+      gl.activeTexture(gl.TEXTURE0);gl.bindTexture(gl.TEXTURE_2D,b.texture);
+      gl.uniform1i(sphereProgram.uniforms.snapshot,0);
+      gl.uniform1f(sphereProgram.uniforms.rotation,b.rotation);
+      gl.drawArrays(gl.TRIANGLES,0,6);
+    }
+  }
+  /* CAMERA START/STOP — DORMANT. Restore in the assignment, not this preview.
+  function stopCamera() {
+    generation++;running=false;faceBounds=null;
+    if(stream)stream.getTracks().forEach(track=>track.stop());
+    stream=null;video.srcObject=null;
+    button.hidden=false;button.disabled=false;button.textContent='Start camera';
+  }
+  button.onclick=async()=>{
+    if(!navigator.mediaDevices?.getUserMedia){message('Open this page on HTTPS or localhost to use the camera.');return;}
+    const session=generation;button.disabled=true;message('');
+    try {
+      const camera=await navigator.mediaDevices.getUserMedia({video:{width:{ideal:640},height:{ideal:480},facingMode:'user'},audio:false});
+      if(session!==generation){camera.getTracks().forEach(track=>track.stop());return;}
+      stream=camera;video.srcObject=stream;await video.play();
+      stream.getVideoTracks()[0].addEventListener('ended',()=>{stopCamera();message('Camera stopped. The existing snapshots remain.');});
+      button.textContent='Loading face tracking…';await loadFaceTracker();
+      if(session!==generation||!stream)return;
+      running=true;nextSpawn=simulationTime;lastVideoTime=-1;button.hidden=true;
+      message('Looking for your face…');
+    } catch(error) {
+      console.error(error);stopCamera();
+      message(error.name==='NotAllowedError'?'Allow camera access, then try again.':'Could not start the camera or face tracking. Check your camera and internet connection.');
+    } finally {button.disabled=false;}
+  };
+  */
+
+  // Seed a small pile and two incoming spheres so even a paused preview is useful.
+  for(let i=0;i<5;i++)spawnSphere();
+  for(let i=0;i<180;i++)simulate(STEP);
+  spawnSphere();spawnSphere();
+  nextSpawn=simulationTime+SPAWN_INTERVAL;
+  PreviewPlayback.run((now,dt)=>{
+    worldWidth=innerWidth;worldHeight=innerHeight;
+    const dpr=1,w=Math.max(1,Math.round(worldWidth*dpr)),h=Math.max(1,Math.round(worldHeight*dpr));
+    if(canvas.width!==w||canvas.height!==h){canvas.width=w;canvas.height=h;gl.viewport(0,0,w,h);}
+    if(dt>0 && simulationTime>=nextSpawn){spawnSphere();nextSpawn=simulationTime+SPAWN_INTERVAL;}
+    accumulator+=dt;
+    while(accumulator>=STEP){simulate(STEP);accumulator-=STEP;}
+    drawScene(dpr);
+  });
+})();
+</script></body></html>

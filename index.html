@@ -1,21 +1,67 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Weekly Projects</title>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="CTC-2156: CFGI. A growing collection of weekly experiments in shaders, motion, and creative coding.">
+  <meta name="theme-color" content="#f5f5f0">
+  <title>CTC-2156: CFGI — Weekly Studies</title>
+  <link rel="stylesheet" href="assets/home.css">
+  <script src="assets/home.js" defer></script>
 </head>
-
 <body>
+  <a class="skip-link" href="#assignments">Skip to assignments</a>
+  <header class="site-header">
+    <a class="wordmark" href="#top" aria-label="CFGI home"><span class="mark" aria-hidden="true">✳</span> CFGI / CTC-2156</a>
+    <nav aria-label="Main navigation"><a href="#assignments">The index <span class="count">[03]</span> <span aria-hidden="true">↗</span></a></nav>
+  </header>
+  <main>
+    <section class="hero" id="top" aria-labelledby="course-title">
+      <div class="hero-copy">
+        <p class="eyebrow"><span class="status-dot" aria-hidden="true"></span> Creative coding / Fall 2026</p>
+        <h1 id="course-title">CTC-2156:<br><span>CFGI</span><span class="title-dot" aria-hidden="true">.</span></h1>
+        <p class="intro">A collection of small experiments<br>in code, light, and interaction.</p>
+        <a class="index-link" href="#assignments">Explore the studies <span aria-hidden="true">↓</span></a>
+      </div>
+      <div class="hero-art">
+        <div class="art-caption"><span>Study 003 / In motion</span><button id="motion-toggle" type="button" aria-pressed="false">Pause motion <span aria-hidden="true">Ⅱ</span></button></div>
+        <div class="hero-stage">
+          <iframe src="previews/face-rain.html" title="Face Rain: blank spheres and colorful ripples" data-preview allow="camera 'none'; microphone 'none'" tabindex="-1"></iframe>
+          <span class="corner top-left" aria-hidden="true"></span><span class="corner top-right" aria-hidden="true"></span>
+          <span class="corner bottom-left" aria-hidden="true"></span><span class="corner bottom-right" aria-hidden="true"></span>
+        </div>
+        <a class="art-footnote" href="week3.html"><span>Face Rain <span class="muted">/ a study in accumulation</span></span><span aria-hidden="true">↗</span></a>
+      </div>
+      <div class="hero-bottom"><span>Pixels. Patterns. Possibilities.</span><a href="#assignments">Scroll to the index <span aria-hidden="true">↓</span></a></div>
+    </section>
 
-    <h1>Weeks</h1>
-
-    <a href="week1.html">Week 1</a>
-    <br>
-
-    <a href="week2.html">Week 2</a>
-    <br>
-
-    <a href="week3.html">Week 3 — Head Orbits</a>
-
+    <section class="assignments" id="assignments" aria-labelledby="assignments-title">
+      <div class="section-heading"><div><p class="eyebrow">The index / 01—03</p><h2 id="assignments-title">Weekly studies<span class="muted">.</span></h2></div><p class="section-note">An ongoing collection.<br>Open a study to explore.</p></div>
+      <!-- Add future week cards here, using the same linked preview structure. -->
+      <div class="study-grid">
+        <a class="study" href="week1.html" aria-labelledby="week1-title">
+          <div class="study-preview preview-one"><iframe src="previews/week1.html" loading="lazy" title="Live preview of the Week 1 shader" data-preview allow="camera 'none'; microphone 'none'" tabindex="-1"></iframe><span class="preview-number">01</span><span class="open-indicator" aria-hidden="true">↗</span></div>
+          <div class="study-meta"><span>Week 01</span><span>GLSL / PATTERN</span></div>
+          <h3 id="week1-title">Wave interference</h3><p>Trigonometry, texture, and a shifting field of color.</p>
+          <span class="study-link">Open experiment <span aria-hidden="true">↗</span></span>
+        </a>
+        <a class="study" href="week2.html" aria-labelledby="week2-title">
+          <div class="study-preview preview-two"><iframe src="previews/week2.html" loading="lazy" title="Live preview of the Week 2 shader" data-preview allow="camera 'none'; microphone 'none'" tabindex="-1"></iframe><span class="preview-number">02</span><span class="open-indicator" aria-hidden="true">↗</span></div>
+          <div class="study-meta"><span>Week 02</span><span>GLSL / INTERACTION</span></div>
+          <h3 id="week2-title">Chromatic ripples</h3><p>Mouse-driven waves, warped coordinates, and RGB light.</p>
+          <span class="study-link">Open experiment <span aria-hidden="true">↗</span></span>
+        </a>
+        <a class="study" href="week3.html" aria-labelledby="week3-title">
+          <div class="study-preview preview-three"><iframe src="previews/face-rain.html" loading="lazy" title="Camera-free preview of Week 3 Face Rain" data-preview allow="camera 'none'; microphone 'none'" tabindex="-1"></iframe><span class="preview-number">03</span><span class="open-indicator" aria-hidden="true">↗</span></div>
+          <div class="study-meta"><span>Week 03</span><span>VIDEO / PHYSICS</span></div>
+          <h3 id="week3-title">Face Rain</h3><p>Face snapshots, falling spheres, and ripples on impact.</p>
+          <span class="study-link">Open experiment <span aria-hidden="true">↗</span></span>
+        </a>
+      </div>
+      <div class="next-study"><span class="eyebrow">04—XX</span><p>More experiments to come.</p><span class="small-orbit" aria-hidden="true">◎</span></div>
+    </section>
+  </main>
+  <footer><span>CTC-2156: CFGI</span><span>Made with code & curiosity.</span><a href="#top">Back to top ↑</a></footer>
+  <noscript><p class="noscript-note">Animation controls need JavaScript. The assignment links above still work.</p></noscript>
 </body>
 </html>
