@@ -35,6 +35,7 @@
   // remains one accessible link to the original assignment.
   document.querySelectorAll('.study').forEach(card => {
     const frame = card.querySelector('iframe');
+    if (!frame) return;
     card.addEventListener('pointermove', event => {
       const rect = frame.getBoundingClientRect();
       frame.contentWindow?.postMessage({type:'preview-pointer',
