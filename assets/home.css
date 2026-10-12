@@ -92,11 +92,17 @@ code { font:inherit; }
 .design-preview { aspect-ratio:3 / 4; }
 .design-preview > img { object-fit:contain; }
 .design-gallery { max-width:900px; margin:0 auto; }
-.website-preview { position:relative; display:block; aspect-ratio:16 / 10; overflow:hidden; border:1px solid var(--line); background:white; }
-.website-preview > iframe,.maer-site-preview > iframe { width:200%; height:200%; transform:scale(.5); transform-origin:top left; pointer-events:none; }
-.maer-site-preview > iframe { width:300%; height:300%; transform:scale(.333333); }
-.website-preview-label { position:absolute; right:16px; bottom:16px; display:flex; gap:24px; padding:14px 18px; background:var(--paper); border:1px solid var(--line); font-size:11px; }
+/* Keep the live viewport and its link in separate, fully sized rows. */
+.website-preview { display:block; border:1px solid var(--line); background:white; }
+.website-preview-window { position:relative; display:block; height:clamp(560px,75vh,900px); overflow:hidden; }
+.website-preview-window > iframe { position:absolute; inset:0; width:100%; height:100%; pointer-events:none; }
+.maer-site-preview > iframe { position:absolute; top:0; left:0; width:300%; height:300%; transform:scale(.333333); transform-origin:top left; pointer-events:none; }
+.website-preview-label { display:flex; justify-content:space-between; align-items:center; gap:24px; padding:18px 22px; background:var(--paper); border-top:1px solid var(--line); font-size:12px; line-height:1.5; }
 .website-preview:hover .website-preview-label,.website-preview:focus-visible .website-preview-label { background:var(--ink); color:var(--paper); }
+.maer-gallery { gap:48px; }
+.maer-gallery > figure { min-width:0; }
+.maer-gallery figcaption { line-height:1.6; }
+@media(max-width:640px) { .website-preview-window { height:560px; } .website-preview-label { padding:16px; } }
 .maer-gallery .maer-logo { padding:6%; background:white; }
 .maer-gallery video { display:block; width:100%; aspect-ratio:16 / 9; background:#171717; border:1px solid var(--line); }
 .maer-icon { max-width:520px; }
