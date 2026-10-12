@@ -92,8 +92,9 @@ code { font:inherit; }
 .design-preview { aspect-ratio:3 / 4; }
 .design-preview > img { object-fit:contain; }
 .design-gallery { max-width:900px; margin:0 auto; }
-.maer-site-preview > img { object-fit:contain; background:#e9eded; }
-.website-preview { position:relative; display:block; }
+.website-preview { position:relative; display:block; aspect-ratio:16 / 10; overflow:hidden; border:1px solid var(--line); background:white; }
+.website-preview > iframe,.maer-site-preview > iframe { width:200%; height:200%; transform:scale(.5); transform-origin:top left; pointer-events:none; }
+.maer-site-preview > iframe { width:300%; height:300%; transform:scale(.333333); }
 .website-preview-label { position:absolute; right:16px; bottom:16px; display:flex; gap:24px; padding:14px 18px; background:var(--paper); border:1px solid var(--line); font-size:11px; }
 .website-preview:hover .website-preview-label,.website-preview:focus-visible .website-preview-label { background:var(--ink); color:var(--paper); }
 .maer-gallery .maer-logo { padding:6%; background:white; }
