@@ -87,3 +87,9 @@ code { font:inherit; }
 .project-gallery img { display:block; width:100%; height:auto; border:1px solid var(--line); }
 .project-gallery figcaption { margin-top:12px; font-size:10px; color:var(--muted); }
 @media(max-width:640px) { .project { padding:42px 6vw; } }
+
+.site-header nav { display:flex; flex-wrap:wrap; justify-content:flex-end; gap:12px 24px; }
+.design-preview { aspect-ratio:3 / 4; }
+.design-preview > img { object-fit:contain; }
+.design-gallery { max-width:900px; margin:0 auto; }
+@media(max-width:640px) { .site-header { gap:16px; } }
