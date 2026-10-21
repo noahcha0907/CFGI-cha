@@ -1,14 +1,14 @@
 (() => {
   'use strict';
   const $ = id => document.getElementById(id);
-  const stage = $('stage'), video = $('video'), knob = $('knob'), status = $('status');
+  const stage = $('stage'), video = $('video'), knob = $('knob');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const bodies = [
-    { el: $('video-body'), grip: $('video-grip'), x:0, y:0, vy:0, pointer:null },
+    { el: $('video-body'), grip: $('video-body'), x:0, y:0, vy:0, pointer:null },
     { el:knob, grip:knob, x:0, y:0, vy:0, pointer:null }
   ];
   const control = bodies[1];
-  let dropped = false, keyboardHold = false, previous = 0, objectURL;
+  let dropped = false, keyboardHold = false, previous = 0;
   const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
   const floor = body => Math.max(0,stage.clientHeight - 32 - body.el.offsetHeight);
   const held = () => control.pointer !== null || keyboardHold;
@@ -26,9 +26,7 @@
   }
   function setVolume(value) {
     video.volume = clamp(value,0,1);
-    const label = `${Math.round(video.volume*100)}%`;
-    $('level').textContent = `Volume: ${label}`;
-    $('knob-level').textContent = label;
+    knob.setAttribute('aria-label', `Volume ${Math.round(video.volume*100)}%. Hold in the upper screen and press up or down.`);
   }
   function reset() {
     keyboardHold = false;
@@ -38,17 +36,16 @@
     control.x = stage.clientWidth-knob.offsetWidth-22; control.y = 56;
     bodies.forEach(body => { body.vy = 0; bound(body); draw(body); });
     knob.classList.remove('ready');
-    status.textContent = 'Press Play video, then try the volume knob.';
   }
   function drop() {
     dropped = true;
-    status.textContent = 'Oops. Grab the knob again. Hold it above the line and press ↑ / ↓ (or use + / −).';
     if (reduced.matches) bodies.forEach(body => { body.y = floor(body); draw(body); });
   }
   bodies.forEach(body => {
     body.grip.addEventListener('pointerdown', event => {
       if (event.button !== 0 || body.pointer !== null || keyboardHold) return;
-      if (!dropped) { if (body === control) drop(); return; }
+      body.startX = event.clientX; body.startY = event.clientY; body.moved = false;
+      if (!dropped) { if (body === control) { drop(); playVideo(); } return; }
       event.preventDefault();
       const rect = stage.getBoundingClientRect();
       body.pointer = event.pointerId;
@@ -61,6 +58,7 @@
     });
     body.grip.addEventListener('pointermove', event => {
       if (body.pointer !== event.pointerId) return;
+      if (Math.hypot(event.clientX-body.startX,event.clientY-body.startY)>5) body.moved = true;
       const rect = stage.getBoundingClientRect();
       body.x = event.clientX-rect.left-stage.clientLeft-body.dx;
       body.y = event.clientY-rect.top-stage.clientTop-body.dy;
@@ -72,20 +70,16 @@
   });
   function adjust(delta) {
     if (!ready()) {
-      status.textContent = 'Volume locked. Lift the knob above the dotted line and KEEP holding it.';
       return;
     }
     setVolume(video.volume+delta);
-    status.textContent = `Volume: ${Math.round(video.volume*100)}%. Don’t let go.`;
   }
-  $('quieter').addEventListener('click',() => adjust(-.05));
-  $('louder').addEventListener('click',() => adjust(.05));
   // Space provides a keyboard equivalent of continuously holding the pointer.
   knob.addEventListener('keydown',event => {
     if (event.code === 'Space' || event.code === 'Enter') {
       event.preventDefault();
       if (event.repeat) return;
-      if (!dropped) { drop(); return; }
+      if (!dropped) { drop(); playVideo(); return; }
       if (event.code === 'Space' && control.pointer === null) { keyboardHold = true; control.y = 40; control.vy = 0; draw(control); }
     }
   });
@@ -99,24 +93,20 @@
   addEventListener('blur',releaseAll);
   document.addEventListener('visibilitychange',() => { if (document.hidden) releaseAll(); });
   knob.addEventListener('blur',() => { keyboardHold = false; });
-  $('play').addEventListener('click',async () => {
-    if (!video.paused) { video.pause(); return; }
-    try { await video.play(); } catch { status.textContent = 'Could not play this video. Choose a supported video file and try again.'; }
+  async function playVideo() {
+    try { await video.play(); } catch { /* A later video click can retry playback. */ }
+  }
+  function toggleVideo() { if (video.paused) playVideo(); else video.pause(); }
+  bodies[0].el.addEventListener('click',() => { if (!bodies[0].moved) toggleVideo(); });
+  bodies[0].el.addEventListener('keydown',event => {
+    if (event.code === 'Space' || event.code === 'Enter') { event.preventDefault(); if (!event.repeat) toggleVideo(); }
   });
-  video.addEventListener('play',() => { $('play').textContent = 'Pause video'; });
-  video.addEventListener('pause',() => { $('play').textContent = 'Play video'; });
-  video.addEventListener('error',() => { status.textContent = 'Video could not load. Use Choose a video to select a local file.'; });
-  $('file').addEventListener('change',event => {
-    const file = event.target.files[0];
-    if (!file) return;
-    video.pause();
-    if (objectURL) URL.revokeObjectURL(objectURL);
-    objectURL = URL.createObjectURL(file);
-    video.src = objectURL;
-    video.load();
-    status.textContent = 'Your video is ready. Press Play video to start with sound.';
+  // A second finger can tap either half of the background while the first holds the knob.
+  stage.addEventListener('pointerdown',event => {
+    if (event.pointerType === 'touch' && event.target === stage && held()) {
+      adjust(event.clientX-stage.getBoundingClientRect().left < stage.clientWidth/2 ? -.05 : .05);
+    }
   });
-  $('reset').addEventListener('click',reset);
   new ResizeObserver(() => {
     if (!dropped) reset();
     else bodies.forEach(body => { bound(body); draw(body); });

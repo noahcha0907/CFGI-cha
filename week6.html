@@ -5,33 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Week 6: an intentionally terrible volume interface. Gravity included.">
   <title>Volume Has Weight — Week 6</title>
-  <link rel="stylesheet" href="assets/week6.css">
-  <script src="assets/week6.js" defer></script>
+  <link rel="stylesheet" href="assets/week6.css?v=minimal">
+  <script src="assets/week6.js?v=minimal" defer></script>
 </head>
 <body>
   <header><a href="index.html#assignments">← Back to studies</a><span>RISD / WEEK 06 / INTERFACE EXPERIMENT</span></header>
-  <main>
-    <div class="intro"><p class="eyebrow">AN EXERCISE IN BAD UX</p><h1>Volume has weight.</h1><p>A simple volume control. Some assembly—and continuous physical effort—required.</p></div>
-    <div class="toolbar">
-      <button id="play" type="button">Play video</button>
-      <button id="reset" type="button">Reset gravity</button>
-      <label class="file-button">Choose a video<input id="file" type="file" accept="video/*"></label>
-      <span id="level">Volume: 35%</span>
+  <main id="stage" aria-label="Gravity volume experiment">
+    <div id="video-body" class="body video-body" role="button" tabindex="0" aria-label="Play or pause video. Drag to move after it falls.">
+      <video id="video" src="MAER/EyasPortfolio.mp4" poster="MAER/EyasPreview.jpg" playsinline preload="metadata" loop aria-label="Video controlled by the gravity volume interface"></video>
     </div>
-    <p id="status" role="status">Press Play video, then try the volume knob.</p>
-    <section id="stage" aria-label="Gravity volume experiment" aria-describedby="instructions">
-      <div class="lift-line"><span>LIFT KNOB ABOVE THIS LINE TO ADJUST</span></div>
-      <div id="video-body" class="body video-body">
-        <div id="video-grip">VIDEO / ALSO SUBJECT TO GRAVITY <span aria-hidden="true">⠿</span></div>
-        <video id="video" src="MAER/EyasPortfolio.mp4" playsinline preload="metadata" loop aria-label="Video controlled by the gravity volume interface"></video>
-      </div>
-      <button id="knob" class="body knob" type="button" aria-label="Volume knob. Click to release gravity, then drag and hold above the line while pressing up or down." aria-describedby="instructions"><span aria-hidden="true">↕</span><strong id="knob-level">35%</strong><small>VOLUME</small></button>
-      <div class="floor"><span>THE FLOOR</span><span>GRAVITY: NON-NEGOTIABLE</span></div>
-    </section>
-    <div class="instructions" id="instructions"><p><b>01</b> Try to click the knob. Lose the knob. And the video.</p><p><b>02</b> Grab the knob again and lift it above the dotted line.</p><p><b>03</b> Keep holding it. Use <kbd>↑</kbd> / <kbd>↓</kbd> to change volume. Let go and it falls again.</p></div>
-    <div class="touch-controls"><span>On touch: hold the knob with one finger; tap with another.</span><button id="quieter" type="button" aria-label="Decrease volume while holding knob">−</button><button id="louder" type="button" aria-label="Increase volume while holding knob">+</button></div>
-    <p class="footnote">Keyboard experiment: focus the knob, press Enter to drop it, then hold Space to lift it and use ↑ / ↓. Play / pause and reset stay within reach.</p>
-    <noscript>This experiment needs JavaScript for gravity and video controls.</noscript>
+    <button id="knob" class="body knob" type="button" aria-label="Volume. Click to drop, then hold in the upper part of the screen and press up or down. Keyboard: hold Space to lift."></button>
+    <div class="floor" aria-hidden="true"></div>
   </main>
 </body>
 </html>
