@@ -2,6 +2,7 @@
   'use strict';
   const $ = id => document.getElementById(id);
   const stage = $('stage'), video = $('video'), knob = $('knob');
+  const hint = $('volume-instructions');
   const reduced = matchMedia('(prefers-reduced-motion: reduce)');
   const bodies = [
     { el: $('video-body'), grip: $('video-body'), x:0, y:0, vy:0, pointer:null },
@@ -17,7 +18,16 @@
     if (body === control && body.pendingImpact) setVolume(speed / maxImpactSpeed);
     body.pendingImpact = false;
   }
-  function draw(body) { body.el.style.transform = `translate(${body.x}px, ${body.y}px)`; }
+  function draw(body) {
+    body.el.style.transform = `translate(${body.x}px, ${body.y}px)`;
+    if (body === control) {
+      const x = clamp(body.x + knob.offsetWidth/2 - hint.offsetWidth/2, 6, stage.clientWidth-hint.offsetWidth-6);
+      // Follow above the ball, switching below only when the top edge is too close.
+      const above = body.y - hint.offsetHeight - 10;
+      const y = above >= 6 ? above : body.y + knob.offsetHeight + 10;
+      hint.style.transform = `translate(${x}px, ${clamp(y,6,stage.clientHeight-32-hint.offsetHeight)}px)`;
+    }
+  }
   function bound(body) {
     body.x = clamp(body.x,0,stage.clientWidth-body.el.offsetWidth);
     body.y = clamp(body.y,0,floor(body));

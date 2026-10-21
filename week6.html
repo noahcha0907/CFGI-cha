@@ -5,16 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="Week 6: an intentionally terrible volume interface. Gravity included.">
   <title>Volume Week 6</title>
-  <link rel="stylesheet" href="assets/week6.css?v=instructions">
-  <script src="assets/week6.js?v=throw-volume" defer></script>
+  <link rel="stylesheet" href="assets/week6.css?v=following-hint">
+  <script src="assets/week6.js?v=following-hint" defer></script>
 </head>
 <body>
-  <header><a href="index.html#assignments">← Back to studies</a><div class="header-description"><span>RISD / WEEK 06 / INTERFACE EXPERIMENT</span><p id="volume-instructions">harder throw = higher volume</p></div></header>
+  <header><a href="index.html#assignments">← Back to studies</a><div class="header-description"><span>RISD / WEEK 06 / INTERFACE EXPERIMENT</span></div></header>
   <main id="stage" aria-label="Gravity volume experiment">
     <div id="video-body" class="body video-body" role="button" tabindex="0" aria-label="Play or pause video. Drag to move after it falls.">
       <video id="video" src="assets/videos/IMG_5462.mp4" poster="assets/videos/week6-poster.jpg" playsinline preload="metadata" loop aria-label="Video controlled by the gravity volume interface"></video>
     </div>
     <button id="knob" class="body knob" aria-describedby="volume-instructions" type="button" aria-label="Volume 35%. Throw at the floor to set volume. Keyboard: hold Space to charge, release to throw.">35%</button>
+    <p id="volume-instructions">harder throw = higher volume</p>
     <div class="floor" aria-hidden="true"></div>
   </main>
 </body>
