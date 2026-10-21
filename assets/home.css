@@ -110,3 +110,8 @@ code { font:inherit; }
 @media(max-width:640px) { .site-header { gap:16px; } }
 
 .project-video { display:block; width:100%; height:auto; background:#171717; border:1px solid var(--line); }
+
+.volume-preview { background:radial-gradient(#d5d8cc 1px,transparent 1px) 0 0 / 12px 12px,var(--paper); }
+.volume-preview > img { position:absolute; left:6%; top:28%; width:57%; height:auto; aspect-ratio:16 / 9; object-fit:contain; background:#171717; }
+.volume-preview-ball { position:absolute; right:8%; top:36%; width:19%; aspect-ratio:1; display:grid; place-items:center; border-radius:50%; background:#d6fa6b; font-size:clamp(12px,1.6vw,22px); }
+.volume-preview-floor { position:absolute; bottom:0; left:0; right:0; height:8%; background:var(--ink); }
