@@ -23,7 +23,7 @@
     body.pendingImpact = false;
   }
   function placeBall() {
-    control.x = bodies[0].x + bodies[0].el.offsetWidth + 24;
+    control.x = bodies[0].x + bodies[0].el.offsetWidth + 120;
     control.y = bodies[0].y + (bodies[0].el.offsetHeight-knob.offsetHeight)/2;
     bound(control);
   }
