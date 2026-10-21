@@ -8,7 +8,7 @@ a { color:inherit; }
 .body { position:absolute; top:0; left:0; will-change:transform; touch-action:none; user-select:none; }
 .video-body { width:min(58%,620px,95vh); background:#171717; cursor:grab; }
 #video { display:block; width:100%; aspect-ratio:16 / 9; object-fit:contain; pointer-events:none; }
-.knob { z-index:2; width:100px; height:100px; padding:0; border:0; border-radius:50%; background:var(--accent); cursor:grab; }
+.knob { z-index:2; width:100px; height:100px; padding:0; border:0; border-radius:50%; background:var(--accent); color:var(--ink); font:24px ui-monospace,SFMono-Regular,Consolas,monospace; font-variant-numeric:tabular-nums; cursor:grab; }
 .held { cursor:grabbing; }
 .body:focus-visible,a:focus-visible { outline:2px solid #527d22; outline-offset:5px; }
 .floor { position:absolute; bottom:0; left:0; right:0; height:32px; background:var(--ink); }
