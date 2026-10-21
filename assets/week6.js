@@ -9,14 +9,54 @@
     { el:knob, grip:knob, x:0, y:0, vy:0, pointer:null }
   ];
   const control = bodies[1];
-  let dropped = false, keyboardHold = false, previous = 0, charge = 0;
+  let dropped = false, keyboardHold = false, previous = 0, charge = 0, exploded = false;
   const clamp = (v,lo,hi) => Math.max(lo,Math.min(hi,v));
   const floor = body => Math.max(0,stage.clientHeight - 32 - body.el.offsetHeight);
   const gravity = 1600;
   const maxImpactSpeed = 2600;
   function impact(body, speed) {
-    if (body === control && body.pendingImpact) setVolume(speed / maxImpactSpeed);
+    if (body === control && body.pendingImpact) {
+      setVolume(speed / maxImpactSpeed);
+      // One roll per hard impact, never on the subsequent bounces.
+      if (speed >= 1900 && Math.random() < .4) explode();
+    }
     body.pendingImpact = false;
+  }
+  function placeBall() {
+    control.x = bodies[0].x + bodies[0].el.offsetWidth + 24;
+    control.y = bodies[0].y + (bodies[0].el.offsetHeight-knob.offsetHeight)/2;
+    bound(control);
+  }
+  function explode() {
+    exploded = true;
+    keyboardHold = false;
+    knob.style.visibility = 'hidden';
+    hint.style.visibility = 'hidden';
+    if (!reduced.matches) {
+      const x = control.x + knob.offsetWidth/2;
+      const y = floor(control) + knob.offsetHeight/2;
+      for (let i=0;i<24;i++) {
+        const shard = document.createElement('span');
+        shard.className = 'ball-shard';
+        shard.setAttribute('aria-hidden','true');
+        shard.style.left = `${x}px`; shard.style.top = `${y}px`;
+        stage.append(shard);
+        const dx = (Math.random()-.5)*360;
+        const dy = -(50+Math.random()*230);
+        shard.animate([
+          { transform:'translate(-50%,-50%) scale(1)', opacity:1 },
+          { transform:`translate(${dx*.6}px,${dy}px) rotate(120deg) scale(.8)`, opacity:1, offset:.55 },
+          { transform:`translate(${dx}px,${dy+120}px) rotate(240deg) scale(0)`, opacity:0 }
+        ], {duration:650+Math.random()*300,easing:'ease-out',fill:'forwards'});
+        setTimeout(() => shard.remove(),1000);
+      }
+    }
+    setTimeout(() => {
+      placeBall(); control.vy = 0; control.pendingImpact = false;
+      draw(control);
+      knob.style.visibility = ''; hint.style.visibility = '';
+      exploded = false;
+    },1200);
   }
   function draw(body) {
     body.el.style.transform = `translate(${body.x}px, ${body.y}px)`;
@@ -53,7 +93,7 @@
     dropped = false;
     bodies.forEach(body => release(body));
     bodies[0].x = 18; bodies[0].y = 32;
-    control.x = stage.clientWidth-knob.offsetWidth-22; control.y = 56;
+    placeBall();
     bodies.forEach(body => { body.vy = 0; bound(body); draw(body); });
 
   }
@@ -63,7 +103,7 @@
   }
   bodies.forEach(body => {
     body.grip.addEventListener('pointerdown', event => {
-      if (event.button !== 0 || body.pointer !== null || keyboardHold) return;
+      if ((body === control && exploded) || event.button !== 0 || body.pointer !== null || keyboardHold) return;
       body.startX = event.clientX; body.startY = event.clientY; body.moved = false;
       if (!dropped) { if (body === control) { drop(); playVideo(); } return; }
       event.preventDefault();
@@ -105,7 +145,7 @@
   knob.addEventListener('keydown',event => {
     if (event.code !== 'Space' && event.code !== 'Enter') return;
     event.preventDefault();
-    if (event.repeat || control.pointer !== null) return;
+    if (exploded || event.repeat || control.pointer !== null) return;
     if (!dropped) { drop(); playVideo(); return; }
     if (event.code === 'Space') {
       keyboardHold = true; charge = 0; control.y = 40; control.vy = 0;
@@ -140,7 +180,7 @@
     previous = now;
     if (keyboardHold) charge += dt;
     if (dropped) bodies.forEach(body => {
-      if (body.pointer !== null || (body === control && keyboardHold)) return;
+      if (body.pointer !== null || (body === control && (keyboardHold || exploded))) return;
       const bottom = floor(body);
       if (reduced.matches) {
         impact(body, Math.sqrt(body.vy*body.vy + 2*gravity*Math.max(0,bottom-body.y)));

@@ -15,3 +15,5 @@ a { color:inherit; }
 .body:focus-visible,a:focus-visible { outline:2px solid #527d22; outline-offset:5px; }
 .floor { position:absolute; bottom:0; left:0; right:0; height:32px; background:var(--ink); }
 @media(max-width:600px) { header { font-size:9px; padding:20px 5vw; } .video-body { width:min(62%,95vh); } .knob { width:80px; height:80px; } }
+
+.ball-shard { position:absolute; z-index:4; width:12px; height:12px; background:var(--accent); border-radius:3px; pointer-events:none; }
